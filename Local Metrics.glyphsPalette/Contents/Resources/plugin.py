@@ -106,7 +106,7 @@ class LocalMetrics(PalettePlugin):
 					names = names.difference(selectedGlyphNames)
 			else:
 				# If there's no filter, then the state must be ON -> OFF
-				assert sender.get() == ONSTATE
+				assert sender.get() == OFFSTATE
 				names = set(g.name for g in Glyphs.font.glyphs).difference(selectedGlyphNames)
 			metric.filter = NSCompoundPredicate.orPredicateWithSubpredicates_([
 				NSPredicate.predicateWithFormat_(f'name == "{name}"') for name in names
