@@ -14,7 +14,7 @@
 import objc
 import traceback
 
-from AppKit import NSCompoundPredicate, NSOrPredicateType, NSPredicate
+from AppKit import NSPredicate
 from vanilla import CheckBox, VerticalStackView, Window
 
 from GlyphsApp import *
@@ -91,26 +91,14 @@ class LocalMetrics(PalettePlugin):
 		if sender.get() == MIXEDSTATE:
 			sender.set(ONSTATE)
 		try:
-			metric = next(m[1] for m, c in self.checkBoxes.items() if c is sender)
-			selectedGlyphNames = [g.name for g in selectedGlyphs(Glyphs.font)]
-			if metric.filter:
-				# We only use OR predicate type
-				assert metric.filter.compoundPredicateType() == NSOrPredicateType
-				names = set(
-					p.predicateFormat().split('"')[-2]  # Parse from `name == "<NAME>"`
-					for p in metric.filter.subpredicates()
-				)
+			tagName = metricName(next(m[1] for m, c in self.checkBoxes.items() if c is sender))
+			for glyph in selectedGlyphs(Glyphs.font):
 				if sender.get() == ONSTATE:
-					names = names.union(selectedGlyphNames)
+					# OFF -> ON
+					glyph.tags.append(tagName)
 				else:
-					names = names.difference(selectedGlyphNames)
-			else:
-				# If there's no filter, then the state must be ON -> OFF
-				assert sender.get() == OFFSTATE
-				names = set(g.name for g in Glyphs.font.glyphs).difference(selectedGlyphNames)
-			metric.filter = NSCompoundPredicate.orPredicateWithSubpredicates_([
-				NSPredicate.predicateWithFormat_(f'name == "{name}"') for name in names
-			])
+					# ON -> OFF
+					glyph.tags.remove(tagName)
 		except:
 			print(traceback.format_exc())
 
@@ -118,7 +106,7 @@ class LocalMetrics(PalettePlugin):
 	def newCheckBox(self, metric):
 		checkBox = CheckBox(
 			posSize='auto',
-			title=metric.name[1:],  # Remove the leading `_`
+			title=metricName(metric),
 			sizeStyle='mini',
 			callback=self.checkBoxToggle,
 		)
@@ -130,18 +118,30 @@ class LocalMetrics(PalettePlugin):
 		return __file__
 
 
+def metricName(metric):
+	return str(metric.filter.rightExpression()).replace('"', '')
+
+
 def customMetrics(metrics):
-	# GS_METRIC_TYPE_OTHER        = 0
-	# GS_METRIC_TYPE_ASCENDER     = 1
-	# GS_METRIC_TYPE_CAP_HEIGHT   = 2
-	# GS_METRIC_TYPE_SLANT_HEIGHT = 3
-	# GS_METRIC_TYPE_X_HEIGHT     = 4
-	# GS_METRIC_TYPE_MIDHEIGHT    = 5
-	# GS_METRIC_TYPE_BODYHEIGHT   = 6
-	# GS_METRIC_TYPE_DESCENDER    = 7
-	# GS_METRIC_TYPE_BASELINE     = 8
-	# GS_METRIC_TYPE_ITALIC_ANGLE = 9
-	return [m for m in metrics if m.type() == 0 and m.name.startswith('_')]
+	# Metric types:
+	#   Other:        0
+	#   Ascender:     1
+	#   Cap Height:   2
+	#   Slant Height: 3
+	#   x-Height:     4
+	#   Midheight:    5
+	#   Bodyheight:   6
+	#   Descender:    7
+	#   Baseline:     8
+	#   Italic Angle: 9
+	res = []
+	for metric in (
+		m for m in metrics
+		if m.type() == 0 and m.filter.predicateFormat().startswith('tags CONTAINS')
+	):
+		metric.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{metric.name}"')
+		res.append(metric)
+	return res
 
 
 def selectedGlyphs(font):

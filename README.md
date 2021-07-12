@@ -4,7 +4,7 @@ Local Metrics is a plugin for the [Glyphs font editor](http://glyphsapp.com/).
 
 ## License
 
-Copyright &copy; 2021 Xiangdong Zeng
+Copyright &copy; 2021 3type
 
 Made possible with the [GlyphsSDK](https://github.com/schriftgestalt/GlyphsSDK) by Georg Seifert ([@schriftgestalt](https://github.com/schriftgestalt)) and Rainer Erich Scheichelbauer ([@mekkablue](https://github.com/mekkablue)).
 
