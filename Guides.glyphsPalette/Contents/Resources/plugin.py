@@ -6,7 +6,7 @@
 #	Palette Plugin: Guides Palette
 #
 #	Read the docs:
-#	https://github.com/schriftgestalt/GlyphsSDK/tree/master/Python%20Templates/Palette
+#	https://github.com/schriftgestalt/GlyphsSDK/tree/Glyphs3/Python%20Templates/Palette
 #
 #
 ###########################################################################################################
@@ -14,7 +14,7 @@
 import objc
 import traceback
 
-from AppKit import NSPredicate
+from AppKit import NSFont, NSFontWeightRegular, NSMiniControlSize, NSPredicate
 from vanilla import CheckBox, VerticalStackView, Window
 
 from GlyphsApp import *
@@ -25,11 +25,14 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def settings(self):
-		self.name = 'Guides'
+		self.name = Glyphs.localize({
+			'en': 'Guides',
+			'zh': '参考线',
+		})
 
 		self.checkBoxes = {
-			(i, metric): self.newCheckBox(metric)
-			for i, metric in enumerate(customMetrics(Glyphs.font.metrics))
+			guide: self.newCheckBox(guide)
+			for guide in globalGuides(Glyphs.font.selectedFontMaster)
 		}
 
 		self.paletteView = Window(posSize=(200, 100))
@@ -56,21 +59,23 @@ class GuidesPalette(PalettePlugin):
 	def update(self, sender):
 		if font := sender.object().parent:
 			# Update the palette view
-			newMetrics     = list(enumerate(customMetrics(font.metrics)))
-			removedMetrics = list(set(self.checkBoxes.keys()) - set(newMetrics))
-			addedMetrics   = list(set(newMetrics) - set(self.checkBoxes.keys()))
-			for i, metric in removedMetrics:
-				self.paletteView.verticalStackView.removeView(self.checkBoxes[(i, metric)])
-				del self.checkBoxes[(i, metric)]
-			for i, metric in sorted(addedMetrics, key=lambda t: t[0]):
-				self.checkBoxes[(i, metric)] = self.newCheckBox(metric)
-				self.paletteView.verticalStackView.insertView(i, self.checkBoxes[(i, metric)])
+			newGuides     = globalGuides(font.selectedFontMaster)
+			removedGuides = list(set(self.checkBoxes.keys()) - set(newGuides))
+			addedGuides   = list(set(newGuides) - set(self.checkBoxes.keys()))
+			for guide in removedGuides:
+				self.paletteView.verticalStackView.removeView(self.checkBoxes[guide])
+				del self.checkBoxes[guide]
+			for guide in addedGuides:
+				self.checkBoxes[guide] = self.newCheckBox(guide)
+				self.paletteView.verticalStackView.appendView(self.checkBoxes[guide])
+			for guide, checkBox in self.checkBoxes.items():
+				checkBox.setTitle(guideName(guide))
 
 			# Update the state of checkboxes
 			if glyphs := selectedGlyphs(font):
-				for (_, metric), checkBox in self.checkBoxes.items():
-					if metric.filter:
-						isInFilter = list(map(metric.filter.evaluateWithObject_, glyphs))
+				for guide, checkBox in self.checkBoxes.items():
+					if guide.filter:
+						isInFilter = list(map(guide.filter.evaluateWithObject_, glyphs))
 						if all(isInFilter):
 							state = ONSTATE
 						elif not any(isInFilter):
@@ -91,25 +96,31 @@ class GuidesPalette(PalettePlugin):
 		if sender.get() == MIXEDSTATE:
 			sender.set(ONSTATE)
 		try:
-			tagName = metricName(next(m[1] for m, c in self.checkBoxes.items() if c is sender))
+			pass
+			tag = next(tagName(g) for g, c in self.checkBoxes.items() if c is sender)
 			for glyph in selectedGlyphs(Glyphs.font):
 				if sender.get() == ONSTATE:
 					# OFF -> ON
-					glyph.tags.append(tagName)
+					glyph.tags.append(tag)
 				else:
 					# ON -> OFF
-					glyph.tags.remove(tagName)
+					glyph.tags.remove(tag)
 		except:
 			print(traceback.format_exc())
 
 	@objc.python_method
-	def newCheckBox(self, metric):
+	def newCheckBox(self, guide):
 		checkBox = CheckBox(
 			posSize='auto',
-			title=metricName(metric),
+			title=guideName(guide),
 			sizeStyle='mini',
 			callback=self.checkBoxToggle,
 		)
+		font = NSFont.monospacedDigitSystemFontOfSize_weight_(
+			NSFont.systemFontSizeForControlSize_(NSMiniControlSize),
+			NSFontWeightRegular,
+		)
+		checkBox._nsObject.setFont_(font)
 		checkBox._nsObject.setAllowsMixedState_(True)
 		return checkBox
 
@@ -118,30 +129,22 @@ class GuidesPalette(PalettePlugin):
 		return __file__
 
 
-def metricName(metric):
-	return str(metric.filter.rightExpression()).replace('"', '')
-
-
-def customMetrics(metrics):
-	# Metric types:
-	#   Other:        0
-	#   Ascender:     1
-	#   Cap Height:   2
-	#   Slant Height: 3
-	#   x-Height:     4
-	#   Midheight:    5
-	#   Bodyheight:   6
-	#   Descender:    7
-	#   Baseline:     8
-	#   Italic Angle: 9
+def globalGuides(master):
 	res = []
-	for metric in (
-		m for m in metrics
-		if m.type() == 0 and m.filter.predicateFormat().startswith('tags CONTAINS')
-	):
-		metric.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{metric.name}"')
-		res.append(metric)
+	for guide in (g for g in master.guides if g.name):
+		guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"')
+		res.append(guide)
 	return res
+
+
+def guideName(guide):
+	x = round(guide.position.x)
+	y = round(guide.position.y)
+	return f'{guide.name}  ({x}, {y}), {guide.angle:.1f}\xB0'  # `\xB0` is the degree symbol
+
+
+def tagName(guide):
+	return 'guide_' + guide.name
 
 
 def selectedGlyphs(font):
