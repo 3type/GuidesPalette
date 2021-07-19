@@ -1,6 +1,6 @@
-# Local Metrics
+# Guides Palette
 
-Local Metrics is a plugin for the [Glyphs font editor](http://glyphsapp.com/).
+Guides Palette is a plugin for the [Glyphs font editor](http://glyphsapp.com/).
 
 ## License
 
