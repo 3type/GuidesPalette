@@ -3,7 +3,7 @@
 ###########################################################################################################
 #
 #
-#	Palette Plugin: Local Metrics
+#	Palette Plugin: Guides Palette
 #
 #	Read the docs:
 #	https://github.com/schriftgestalt/GlyphsSDK/tree/master/Python%20Templates/Palette
@@ -21,11 +21,11 @@ from GlyphsApp import *
 from GlyphsApp.plugins import *
 
 
-class LocalMetrics(PalettePlugin):
+class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def settings(self):
-		self.name = 'Local Metrics'
+		self.name = 'Guides'
 
 		self.checkBoxes = {
 			(i, metric): self.newCheckBox(metric)
