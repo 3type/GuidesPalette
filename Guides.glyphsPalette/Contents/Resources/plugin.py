@@ -58,19 +58,22 @@ class GuidesPalette(PalettePlugin):
 	@objc.python_method
 	def update(self, sender):
 		if font := sender.object().parent:
-			# Update the palette view
+			# Update the checkBox list
 			newGuides     = globalGuides(font.selectedFontMaster)
 			removedGuides = list(set(self.checkBoxes.keys()) - set(newGuides))
 			addedGuides   = list(set(newGuides) - set(self.checkBoxes.keys()))
 			for guide in removedGuides:
-				self.paletteView.verticalStackView.removeView(self.checkBoxes[guide])
 				del self.checkBoxes[guide]
 			for guide in addedGuides:
 				self.checkBoxes[guide] = self.newCheckBox(guide)
-				self.paletteView.verticalStackView.appendView(self.checkBoxes[guide])
-			for guide, checkBox in self.checkBoxes.items():
-				checkBox.setTitle(guideName(guide))
 
+			# Update the palette view (sorted by guide's name)
+			for view in self.paletteView.verticalStackView.getNSStackView().views():
+				self.paletteView.verticalStackView.removeView(view)
+			for guide, checkBox in sorted(self.checkBoxes.items(), key=lambda p: p[0].name):
+				checkBox.setTitle(guideName(guide))
+				self.paletteView.verticalStackView.appendView(checkBox)
+			
 			# Update the state of checkboxes
 			if glyphs := selectedGlyphs(font):
 				for guide, checkBox in self.checkBoxes.items():
