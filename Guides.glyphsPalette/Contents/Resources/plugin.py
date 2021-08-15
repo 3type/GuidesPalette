@@ -15,7 +15,7 @@ import objc
 import traceback
 
 from AppKit import NSFont, NSFontWeightRegular, NSMiniControlSize, NSPredicate
-from vanilla import CheckBox, VerticalStackView, Window
+from vanilla import CheckBox, EditText, HorizontalStackView, TextBox, VerticalStackView, Window
 
 from GlyphsApp import *
 from GlyphsApp.plugins import *
@@ -39,7 +39,7 @@ class GuidesPalette(PalettePlugin):
 		self.paletteView = Window(posSize=(200, 100))
 		self.paletteView.verticalStackView = VerticalStackView(
 			posSize='auto',
-			views=self.checkBoxes.values(),
+			views=[c.view() for c in self.checkBoxes.values()],
 			alignment='leading',
 			spacing=3,
 			edgeInsets=(2, 8, 8, 1),
@@ -82,8 +82,11 @@ class GuidesPalette(PalettePlugin):
 				self.checkBoxes = dict(sorted(
 					self.checkBoxes.items(), key=sortBy[0], reverse=sortBy[1]))
 			for guide, checkBox in self.checkBoxes.items():
-				checkBox.setTitle(self.guideName(guide))
-				self.paletteView.verticalStackView.appendView(checkBox)
+				guideName, guidePos, guideAngle = self.guideNamePosAngle(guide)
+				checkBox.name.set(guideName)
+				checkBox.pos.set(guidePos)
+				checkBox.angle.set(guideAngle)
+				self.paletteView.verticalStackView.appendView(checkBox.view())
 
 			# Update the state of checkboxes
 			if glyphs := selectedGlyphs(font):
@@ -98,11 +101,11 @@ class GuidesPalette(PalettePlugin):
 							state = MIXEDSTATE
 					else:
 						state = ONSTATE
-					checkBox.enable(True)
-					checkBox.set(state)
+					checkBox.check.enable(True)
+					checkBox.check.set(state)
 			else:
 				for checkBox in self.checkBoxes.values():
-					checkBox.enable(False)
+					checkBox.check.enable(False)
 
 	@objc.python_method
 	def updateConfig(self, font):
@@ -133,8 +136,7 @@ class GuidesPalette(PalettePlugin):
 		if sender.get() == MIXEDSTATE:
 			sender.set(ONSTATE)
 		try:
-			pass
-			tag = next(tagName(g) for g, c in self.checkBoxes.items() if c is sender)
+			tag = next(tagName(g) for g, c in self.checkBoxes.items() if c.check is sender)
 			for glyph in selectedGlyphs(Glyphs.font):
 				if sender.get() == ONSTATE:
 					# OFF -> ON
@@ -147,39 +149,76 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def newCheckBox(self, guide):
-		checkBox = CheckBox(
-			posSize='auto',
-			title=self.guideName(guide),
-			sizeStyle='mini',
-			callback=self.checkBoxToggle,
+		guideName, guidePos, guideAngle = self.guideNamePosAngle(guide)
+		return CompositeCheckBox(
+			check=CheckBox(
+				posSize='auto',
+				title=None,
+				sizeStyle='mini',
+				callback=self.checkBoxToggle,
+			),
+			name=EditText(
+				posSize='auto',
+				text=guideName,
+				sizeStyle='mini',
+				# callback=self.checkBoxToggle,
+			),
+			pos=TextBox(
+				posSize='auto',
+				text=guidePos,
+				sizeStyle='mini',
+				# callback=self.checkBoxToggle,
+			),
+			angle=TextBox(
+				posSize='auto',
+				text=guideAngle,
+				sizeStyle='mini',
+				# callback=self.checkBoxToggle,
+			),
 		)
-		font = NSFont.monospacedDigitSystemFontOfSize_weight_(
-			NSFont.systemFontSizeForControlSize_(NSMiniControlSize),
-			NSFontWeightRegular,
-		)
-		checkBox._nsObject.setFont_(font)
-		checkBox._nsObject.setAllowsMixedState_(True)
-		return checkBox
 
 	@objc.python_method
-	def guideName(self, guide):
+	def guideNamePosAngle(self, guide):
+		name  = f'{guide.name}'
+		pos   = ''
+		angle = ''
 		if self.showCoordinates:
-			x = round(guide.position.x)
-			y = round(guide.position.y)
-			if self.showAngle:
-				# `\xB0` is the degree symbol
-				return f'{guide.name}  ({x}, {y}), {guide.angle:.1f}\xB0'
-			else:
-				return f'{guide.name}  ({x}, {y})'
-		else:
-			if self.showAngle:
-				return f'{guide.name}  {guide.angle:.1f}\xB0'
-			else:
-				return f'{guide.name}'
+			pos = f'({round(guide.position.x)}, {round(guide.position.y)})'
+		if self.showAngle:
+			angle = f'{guide.angle:.1f}\xB0'
+		return name, pos, angle
 
 	@objc.python_method
 	def __file__(self):
 		return __file__
+
+
+class CompositeCheckBox:
+	font = NSFont.monospacedDigitSystemFontOfSize_weight_(
+		NSFont.systemFontSizeForControlSize_(NSMiniControlSize),
+		NSFontWeightRegular,
+	)
+
+	def __init__(self, check, name, pos, angle):
+		self.check = check
+		self.name  = name
+		self.pos   = pos
+		self.angle = angle
+		self.check._nsObject.setAllowsMixedState_(True)
+		self.pos._nsObject.setFont_(self.font)
+		self.angle._nsObject.setFont_(self.font)
+
+	def view(self):
+		return HorizontalStackView(
+			posSize='auto',
+			views=[
+				{'view': self.check, 'width': 10},
+				{'view': self.name,  'width': 80},
+				{'view': self.pos,   'width': 60},
+				{'view': self.angle, 'width': 40},
+			],
+			spacing=6,
+		)
 
 
 def globalGuides(master):
