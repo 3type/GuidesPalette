@@ -29,7 +29,19 @@ class GuidesPalette(PalettePlugin):
 	def settings(self):
 		self.name = Glyphs.localize({
 			'en': 'Guides',
-			'zh': '参考线',
+			'ar': 'الأدلة',
+			'cs': 'Vodítka',
+			'de': 'Hilfslinien',
+			'es': 'Guías',
+			'fr': 'Les Repères',
+			'it': 'Linee Guida',
+			'ja': 'ガイドライン',
+			'ko': '가이드라인',
+			'pt': 'Guias',
+			'ru': 'Гайды',
+			'tr': 'Kılavuz Çizgileri',
+			'zh-Hans-CN': '参考线',
+			'zh-Hant-CN': '參考線',
 		})
 		self.initConfig()
 		self.checkBoxes = {
