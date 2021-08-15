@@ -60,6 +60,8 @@ class GuidesPalette(PalettePlugin):
 	@objc.python_method
 	def __del__(self):
 		Glyphs.removeCallback(self.update)
+		Glyphs.removeCallback(self.checkBoxToggle)
+		Glyphs.removeCallback(self.checkBoxEdit)
 
 	@objc.python_method
 	def update(self, sender):
@@ -148,6 +150,20 @@ class GuidesPalette(PalettePlugin):
 			print(traceback.format_exc())
 
 	@objc.python_method
+	def checkBoxEdit(self, sender):
+		try:
+			guide = next(g for g, c in self.checkBoxes.items() if c.name is sender)
+			oldTag = tagName(guide)
+			guide.name = sender.get()
+			newTag = tagName(guide)
+			for glyph in selectedGlyphs(Glyphs.font):
+				if oldTag in glyph.tags:
+					glyph.tags.remove(oldTag)
+					glyph.tags.append(newTag)
+		except:
+			print(traceback.format_exc())
+
+	@objc.python_method
 	def newCheckBox(self, guide):
 		guideName, guidePos, guideAngle = self.guideNamePosAngle(guide)
 		return CompositeCheckBox(
@@ -161,27 +177,24 @@ class GuidesPalette(PalettePlugin):
 				posSize='auto',
 				text=guideName,
 				sizeStyle='mini',
-				# callback=self.checkBoxToggle,
+				continuous=False,
+				callback=self.checkBoxEdit,
 			),
 			pos=TextBox(
 				posSize='auto',
 				text=guidePos,
 				sizeStyle='mini',
-				# callback=self.checkBoxToggle,
 			),
 			angle=TextBox(
 				posSize='auto',
 				text=guideAngle,
 				sizeStyle='mini',
-				# callback=self.checkBoxToggle,
 			),
 		)
 
 	@objc.python_method
 	def guideNamePosAngle(self, guide):
-		name  = f'{guide.name}'
-		pos   = ''
-		angle = ''
+		name, pos, angle = f'{guide.name}', '', ''
 		if self.showCoordinates:
 			pos = f'({round(guide.position.x)}, {round(guide.position.y)})'
 		if self.showAngle:
