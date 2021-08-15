@@ -2,6 +2,43 @@
 
 Guides Palette is a plugin for the [Glyphs font editor](http://glyphsapp.com/).
 
+## Usage
+
+Guides Palette can list all the *global* guides with names. You can toggle the display and change the name of them.
+
+Guides with same names will make the plugin unhappy (the behavior will be unpredictable), so please keep the names unique.
+
+### Custom parameters
+
+Guides Palette uses the font custom parameter `Guides Palette Config` to control the appearance of the palette. It can be set with the following format:
+
+    { sortBy = <s>; showAngle = <a>; showCoordinates = <c>; }
+
+where
+
+- `<s>` can be
+  - `None`: do not sort (default)
+  - `name`: sort by name
+  - `x`, `y`: sort by x or y coordinate
+  - `-x` or `-y`: sort by x or y coordinate (inverse)
+- `<a>` and `<c>` can be
+  - `1`: show (default)
+  - `0`: not show
+
+Note:
+
+- Each entry can be omitted
+- Each entry should end with a semicolon `;` (even for the last one)
+- Glyphs will add quotation marks for the values (e.g. `"-x"`), but it's not mandatary
+
+Example:
+
+    { sortBy = -y; showAngle = 0; }
+
+### Remarks
+
+Internally, Guides Palette will add tags like `guide_NAME` for each glyph with guide `NAME`. It's not recommended to edit these tags manually or with plugins like [GutenTag](https://github.com/florianpircher/GutenTag).
+
 ## License
 
 Copyright &copy; 2021 3type
