@@ -105,8 +105,11 @@ class GuidesPalette(PalettePlugin):
 			# Update the state of checkboxes
 			if glyphs := selectedGlyphs(font):
 				for guide, checkBox in self.checkBoxes.items():
-					if guide.filter:
-						isInFilter = list(map(guide.filter.evaluateWithObject_, glyphs))
+					# HACK: in current version of Glyphs, `guide.filter` contains bug.
+					# if guide.filter:
+					# 	isInFilter = list(map(guide.filter.evaluateWithObject_, glyphs))
+					if guide_filter := guide.pyobjc_instanceMethods.filter():
+						isInFilter = list(map(guide_filter.evaluateWithObject_, glyphs))
 						if all(isInFilter):
 							state = ONSTATE
 						elif not any(isInFilter):
@@ -249,7 +252,9 @@ class CompositeCheckBox:
 def globalGuides(master):
 	res = []
 	for guide in (g for g in master.guides if g.name):
-		guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"')
+		# HACK: in current version of Glyphs, `guide.filter` contains bug.
+		# guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"')
+		guide.setFilter_(NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"'))
 		res.append(guide)
 	return res
 
