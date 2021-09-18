@@ -15,7 +15,7 @@ import objc
 import traceback
 
 from AppKit import NSFont, NSFontWeightRegular, NSMiniControlSize, NSPredicate
-from vanilla import CheckBox, EditText, HorizontalStackView, TextBox, VerticalStackView, Window
+from vanilla import CheckBox, EditText, Group, TextBox, VerticalStackView, Window
 
 from GlyphsApp import *
 from GlyphsApp.plugins import *
@@ -51,7 +51,7 @@ class GuidesPalette(PalettePlugin):
 		self.paletteView = Window(posSize=(200, 100))
 		self.paletteView.verticalStackView = VerticalStackView(
 			posSize='auto',
-			views=[c.view() for c in self.checkBoxes.values()],
+			views=[c.getNSView() for c in self.checkBoxes.values()],
 			alignment='leading',
 			spacing=3,
 			edgeInsets=(2, 8, 8, 1),
@@ -100,7 +100,7 @@ class GuidesPalette(PalettePlugin):
 				checkBox.name.set(guideName)
 				checkBox.pos.set(guidePos)
 				checkBox.angle.set(guideAngle)
-				self.paletteView.verticalStackView.appendView(checkBox.view())
+				self.paletteView.verticalStackView.appendView(checkBox.getNSView())
 
 			# Update the state of checkboxes
 			if glyphs := selectedGlyphs(font):
@@ -180,32 +180,49 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def newCheckBox(self, guide):
+		# Create elements
 		guideName, guidePos, guideAngle = self.guideNamePosAngle(guide)
-		return CompositeCheckBox(
-			check=CheckBox(
-				posSize='auto',
-				title=None,
-				sizeStyle='mini',
-				callback=self.checkBoxToggle,
-			),
-			name=EditText(
-				posSize='auto',
-				text=guideName,
-				sizeStyle='mini',
-				continuous=False,
-				callback=self.checkBoxEdit,
-			),
-			pos=TextBox(
-				posSize='auto',
-				text=guidePos,
-				sizeStyle='mini',
-			),
-			angle=TextBox(
-				posSize='auto',
-				text=guideAngle,
-				sizeStyle='mini',
-			),
+		group = Group(posSize='auto')
+		group.check = CheckBox(
+			posSize='auto',
+			title=None,
+			sizeStyle='mini',
+			callback=self.checkBoxToggle,
 		)
+		group.name = EditText(
+			posSize='auto',
+			text=guideName,
+			sizeStyle='mini',
+			continuous=False,
+			callback=self.checkBoxEdit,
+		)
+		group.pos = TextBox(
+			posSize='auto',
+			text=guidePos,
+			sizeStyle='mini',
+		)
+		group.angle = TextBox(
+			posSize='auto',
+			text=guideAngle,
+			sizeStyle='mini',
+		)
+
+		# Update style
+		font = NSFont.monospacedDigitSystemFontOfSize_weight_(
+			NSFont.systemFontSizeForControlSize_(NSMiniControlSize),
+			NSFontWeightRegular,
+		)
+		group.check._nsObject.setAllowsMixedState_(True)
+		group.pos._nsObject.setFont_(font)
+		group.angle._nsObject.setFont_(font)
+		group.addAutoPosSizeRules([
+			'H:|[check(==10)]-[name]-[pos(==60)]-[angle(==40)]|',
+			'V:|-1-[check]|',
+			'V:|[name(==15)]|',
+			'V:|-2-[pos]|',
+			'V:|-2-[angle]|',
+		])
+		return group
 
 	@objc.python_method
 	def guideNamePosAngle(self, guide):
@@ -219,34 +236,6 @@ class GuidesPalette(PalettePlugin):
 	@objc.python_method
 	def __file__(self):
 		return __file__
-
-
-class CompositeCheckBox:
-	font = NSFont.monospacedDigitSystemFontOfSize_weight_(
-		NSFont.systemFontSizeForControlSize_(NSMiniControlSize),
-		NSFontWeightRegular,
-	)
-
-	def __init__(self, check, name, pos, angle):
-		self.check = check
-		self.name  = name
-		self.pos   = pos
-		self.angle = angle
-		self.check._nsObject.setAllowsMixedState_(True)
-		self.pos._nsObject.setFont_(self.font)
-		self.angle._nsObject.setFont_(self.font)
-
-	def view(self):
-		return HorizontalStackView(
-			posSize='auto',
-			views=[
-				{'view': self.check, 'width': 10},
-				{'view': self.name,  'width': 80},
-				{'view': self.pos,   'width': 60},
-				{'view': self.angle, 'width': 40},
-			],
-			spacing=6,
-		)
 
 
 def globalGuides(master):
