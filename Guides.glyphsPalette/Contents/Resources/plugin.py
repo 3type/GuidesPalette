@@ -6,7 +6,7 @@
 #	Palette Plugin: Guides Palette
 #
 #	Read the docs:
-#	https://github.com/schriftgestalt/GlyphsSDK/tree/Glyphs3/Python%20Templates/Palette
+#	https://github.com/3type/GuidesPalette/blob/main/README.md
 #
 #
 ###########################################################################################################
@@ -28,20 +28,10 @@ class GuidesPalette(PalettePlugin):
 	@objc.python_method
 	def settings(self):
 		self.name = Glyphs.localize({
-			'en': 'Guides',
-			'ar': 'الأدلة',
-			'cs': 'Vodítka',
-			'de': 'Hilfslinien',
-			'es': 'Guías',
-			'fr': 'Les Repères',
-			'it': 'Linee Guida',
-			'ja': 'ガイドライン',
-			'ko': '가이드라인',
-			'pt': 'Guias',
-			'ru': 'Гайды',
-			'tr': 'Kılavuz Çizgileri',
-			'zh-Hans-CN': '参考线',
-			'zh-Hant-CN': '參考線',
+			'en': 'Assign Guides',
+			'ja': 'ガイドラインを指定',
+			'zh-Hans-CN': '指定参考线',
+			'zh-Hant-CN': '指定參考線',
 		})
 		self.initConfig()
 		self.checkBoxes = {
