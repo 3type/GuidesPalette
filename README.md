@@ -4,9 +4,13 @@ Guides Palette is a plugin for the [Glyphs font editor](http://glyphsapp.com/).
 
 ## Usage
 
-Guides Palette can list all the *global* guides with names. You can toggle the display and change the name of them.
+Guides Palette can list all the *global* guides with names. Then you can assign them to certain glyphs independently. Guides will display or hide automatically. Helpful for complex design systems such as CJK characters.
 
-Guides with same names will make the plugin unhappy (the behavior will be unpredictable), so please keep the names unique.
+![WX20220221-122610@2x](https://user-images.githubusercontent.com/126215/154889224-34055948-d0cd-4ae9-b7f6-b16f45e387b7.png)
+
+![WX20220221-122708@2x](https://user-images.githubusercontent.com/126215/154889266-6c224922-9053-4e8e-939f-73dbc181e41a.png)
+
+QUICK NOTE: Guides with same names will make the plugin unhappy (the behavior will be unpredictable), so please keep the names unique.
 
 ### Custom parameters
 
