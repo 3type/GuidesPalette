@@ -67,6 +67,10 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def update(self, sender):
+		# Do not update in case the palette is collapsed
+		if self.dialog.frame().origin.y != 0:
+			return
+
 		if font := sender.object().parent:
 			self.updateConfig(font)
 
