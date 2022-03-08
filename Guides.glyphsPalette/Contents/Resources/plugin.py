@@ -155,8 +155,11 @@ class GuidesPalette(PalettePlugin):
 				else:
 					# ON -> OFF
 					glyph.tags.remove(tag)
+			if view := Glyphs.font.currentTab:
+				view.redraw()
 		except:
 			print(traceback.format_exc())
+
 
 	@objc.python_method
 	def checkBoxEdit(self, sender):
@@ -165,12 +168,17 @@ class GuidesPalette(PalettePlugin):
 			oldTag = tagName(guide)
 			guide.name = sender.get()
 			newTag = tagName(guide)
-			for glyph in selectedGlyphs(Glyphs.font):
+			# Update oldTag in font
+			for glyph in Glyphs.font.glyphs:
 				if oldTag in glyph.tags:
 					glyph.tags.remove(oldTag)
 					glyph.tags.append(newTag)
+			# BUGGY: Renamed guide will disappear in edit view. Recover after tab switch. [WIP]
+			if view := Glyphs.font.currentTab:
+				view.redraw()
 		except:
 			print(traceback.format_exc())
+
 
 	@objc.python_method
 	def newCheckBox(self, guide):
