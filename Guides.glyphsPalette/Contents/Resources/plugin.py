@@ -17,13 +17,14 @@ import traceback
 from AppKit import NSFont, NSFontWeightRegular, NSMiniControlSize, NSPredicate
 from vanilla import CheckBox, EditText, Group, TextBox, VerticalStackView, Window
 
-from GlyphsApp import *
-from GlyphsApp.plugins import *
+from GlyphsApp import Glyphs, GSControlLayer, UPDATEINTERFACE, ONSTATE, OFFSTATE, MIXEDSTATE
+from GlyphsApp.plugins import PalettePlugin
 
 
 class GuidesPalette(PalettePlugin):
 
 	CUSTOM_PARAMETER_NAME = 'Guides Palette Config'
+
 
 	@objc.python_method
 	def settings(self):
@@ -33,10 +34,11 @@ class GuidesPalette(PalettePlugin):
 			'zh-Hans-CN': '指定参考线',
 			'zh-Hant-CN': '指定參考線',
 		})
-		self.initConfig()
+		self.updateConfig(Glyphs.font)
+		self.nowPrefix = self.tagPrefix
 		self.checkBoxes = {
 			guide: self.newCheckBox(guide)
-			for guide in globalGuides(Glyphs.font.selectedFontMaster)
+			for guide in self.globalGuides(Glyphs.font.selectedFontMaster)
 		}
 		self.paletteView = Window(posSize=(200, 100))
 		self.paletteView.verticalStackView = VerticalStackView(
@@ -49,21 +51,26 @@ class GuidesPalette(PalettePlugin):
 		# Set dialog to NSView
 		self.dialog = self.paletteView.verticalStackView.getNSStackView()
 
+
 	@objc.python_method
 	def initConfig(self):
 		self.sortBy          = None
 		self.showCoordinates = True
 		self.showAngle       = True
+		self.tagPrefix       = 'guide_'
+
 
 	@objc.python_method
 	def start(self):
 		Glyphs.addCallback(self.update, UPDATEINTERFACE)
+
 
 	@objc.python_method
 	def __del__(self):
 		Glyphs.removeCallback(self.update)
 		Glyphs.removeCallback(self.checkBoxToggle)
 		Glyphs.removeCallback(self.checkBoxEdit)
+
 
 	@objc.python_method
 	def update(self, sender):
@@ -73,9 +80,11 @@ class GuidesPalette(PalettePlugin):
 
 		if font := sender.object().parent:
 			self.updateConfig(font)
+			if self.renamePrefix(self.nowPrefix, self.tagPrefix):
+				self.nowPrefix = self.tagPrefix
 
 			# Update the checkBox list
-			newGuides     = globalGuides(font.selectedFontMaster)
+			newGuides     = self.globalGuides(font.selectedFontMaster)
 			removedGuides = list(set(self.checkBoxes.keys()) - set(newGuides))
 			addedGuides   = list(set(newGuides) - set(self.checkBoxes.keys()))
 			for guide in removedGuides:
@@ -97,13 +106,10 @@ class GuidesPalette(PalettePlugin):
 				self.paletteView.verticalStackView.appendView(checkBox.getNSView())
 
 			# Update the state of checkboxes
-			if glyphs := selectedGlyphs(font):
+			if glyphs := self.selectedGlyphs(font):
 				for guide, checkBox in self.checkBoxes.items():
-					# HACK: in current version of Glyphs, `guide.filter` contains bug.
-					# if guide.filter:
-					# 	isInFilter = list(map(guide.filter.evaluateWithObject_, glyphs))
-					if guide_filter := guide.pyobjc_instanceMethods.filter():
-						isInFilter = list(map(guide_filter.evaluateWithObject_, glyphs))
+					if guide.filter:
+						isInFilter = list(map(guide.filter.evaluateWithObject_, glyphs))
 						if all(isInFilter):
 							state = ONSTATE
 						elif not any(isInFilter):
@@ -118,6 +124,7 @@ class GuidesPalette(PalettePlugin):
 				for checkBox in self.checkBoxes.values():
 					checkBox.check.enable(False)
 
+
 	@objc.python_method
 	def updateConfig(self, font):
 		try:
@@ -125,10 +132,17 @@ class GuidesPalette(PalettePlugin):
 				self.sortBy          = config.get('sortBy', None)
 				self.showCoordinates = bool(int(config.get('showCoordinates', 1)))
 				self.showAngle       = bool(int(config.get('showAngle', 1)))
+				self.tagPrefix       = config.get('tagPrefix', 'guide_')
 			else:
 				self.initConfig()
+				font.customParameters[self.CUSTOM_PARAMETER_NAME] = {
+					'sortBy' 			: self.sortBy,
+					'showCoordinates' 	: self.showCoordinates,
+					'showAngle'			: self.showAngle,
+					'tagPrefix'			: self.tagPrefix,}
 		except:
 			print(traceback.format_exc())
+
 
 	@objc.python_method
 	def checkBoxesSortBy(self):
@@ -141,14 +155,15 @@ class GuidesPalette(PalettePlugin):
 		}
 		return dispatch.get(self.sortBy, None)
 
+
 	@objc.python_method
 	def checkBoxToggle(self, sender):
 		# Ensure that the checkbox becomes either ON of OFF after click
 		if sender.get() == MIXEDSTATE:
 			sender.set(ONSTATE)
 		try:
-			tag = next(tagName(g) for g, c in self.checkBoxes.items() if c.check is sender)
-			for glyph in selectedGlyphs(Glyphs.font):
+			tag = next(self.tagName(g) for g, c in self.checkBoxes.items() if c.check is sender)
+			for glyph in self.selectedGlyphs(Glyphs.font):
 				if sender.get() == ONSTATE:
 					# OFF -> ON
 					glyph.tags.append(tag)
@@ -163,18 +178,42 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def checkBoxEdit(self, sender):
+		font = Glyphs.font
 		try:
+			font.disableUpdateInterface()
 			guide = next(g for g, c in self.checkBoxes.items() if c.name is sender)
-			oldTag = tagName(guide)
-			guide.name = sender.get()
-			newTag = tagName(guide)
-			# Update oldTag in font
-			for glyph in Glyphs.font.glyphs:
+			oldName = guide.name
+			newName = sender.get()
+			oldTag = self.tagName(guide)
+			# Sync guide name between masters
+			for m in font.masters:
+				for g in (x for x in m.guides if oldName == x.name):
+					g.name = newName
+			newTag = self.tagName(guide)
+			# Update oldTag in each glyph & Clean up Guideless tags
+			tagSet = set()
+			for glyph in font.glyphs:
 				if oldTag in glyph.tags:
-					glyph.tags.remove(oldTag)
 					glyph.tags.append(newTag)
-			# BUGGY: Renamed guide will disappear in edit view. Recover after tab switch. [WIP]
-			if view := Glyphs.font.currentTab:
+					glyph.tags.remove(oldTag)	
+				for t in glyph.tags:
+					if t.startswith(self.tagPrefix):
+						tagSet.add(t)
+			guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{self.tagName(guide)}"')
+
+			guideTagSet = set()
+			for m in font.masters:
+				for g in m.guides:
+					guideTagSet.add(self.tagName(g))
+			for t in tagSet.difference(guideTagSet):
+				print(tagSet.difference(guideTagSet))
+				for glyph in font.glyphs:
+					if t in glyph.tags:
+						glyph.tags.remove(t)
+				print(f'GuidesPalette: Removed guideless tag "{t}".')
+
+			font.enableUpdateInterface()
+			if view := font.currentTab:
 				view.redraw()
 		except:
 			print(traceback.format_exc())
@@ -226,6 +265,7 @@ class GuidesPalette(PalettePlugin):
 		])
 		return group
 
+
 	@objc.python_method
 	def guideNamePosAngle(self, guide):
 		name, pos, angle = f'{guide.name}', '', ''
@@ -235,26 +275,57 @@ class GuidesPalette(PalettePlugin):
 			angle = f'{guide.angle:.1f}\xB0'
 		return name, pos, angle
 
+
+	@objc.python_method
+	def globalGuides(self, master):
+		res = []
+		for guide in (g for g in master.guides if g.name):
+			guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{self.tagName(guide)}"')
+			res.append(guide)
+		return res
+
+
+	@objc.python_method
+	def tagName(self, guide):
+		if guide.name:
+			return self.tagPrefix + guide.name
+		else:
+			return None
+
+
+	@objc.python_method
+	def selectedGlyphs(self, font):
+		if layers := font.selectedLayers:
+			return [l.parent for l in layers if not isinstance(l, GSControlLayer)]
+		return []
+
+
+	@objc.python_method
+	def renamePrefix(self, old, new):
+		font = Glyphs.font
+		if old == new:
+			return False
+		else:
+			font.disableUpdateInterface()
+			# Rename tags
+			for glyph in font.glyphs:
+				for t in glyph.tags:
+					if t.startswith(old):
+						newT = new + t.removeprefix(old)
+						glyph.tags.append(newT)
+						glyph.tags.remove(t)
+			# Update guides filter
+			target = f'tags CONTAINS "{old}'
+			for m in font.masters:
+				for g in m.guides:
+					predOld = str(g.filter)
+					if predOld.startswith(target):
+						predNew = predOld.replace(target, f'tags CONTAINS "{new}', 1)
+						g.filter = NSPredicate.predicateWithFormat_(predNew)
+			font.enableUpdateInterface()
+			return True
+
+
 	@objc.python_method
 	def __file__(self):
 		return __file__
-
-
-def globalGuides(master):
-	res = []
-	for guide in (g for g in master.guides if g.name):
-		# HACK: in current version of Glyphs, `guide.filter` contains bug.
-		# guide.filter = NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"')
-		guide.setFilter_(NSPredicate.predicateWithFormat_(f'tags CONTAINS "{tagName(guide)}"'))
-		res.append(guide)
-	return res
-
-
-def tagName(guide):
-	return 'guide_' + guide.name
-
-
-def selectedGlyphs(font):
-	if layers := font.selectedLayers:
-		return [l.parent for l in layers if not isinstance(l, GSControlLayer)]
-	return []

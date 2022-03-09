@@ -16,7 +16,7 @@ QUICK NOTE: Guides with same names will make the plugin unhappy (the behavior wi
 
 Guides Palette uses the font custom parameter `Guides Palette Config` to control the appearance of the palette. It can be set with the following format:
 
-    { sortBy = <s>; showAngle = <a>; showCoordinates = <c>; }
+    { sortBy = <s>; showAngle = <a>; showCoordinates = <c>; tagPrefix = <px>; }
 
 where
 
@@ -28,6 +28,11 @@ where
 - `<a>` and `<c>` can be
   - `1`: show (default)
   - `0`: not show
+- `<px>` can be
+  - `guide_` (default)
+  - or Any text string, eg: `G-` `参考线：`
+  - or Emoji, eg: `📐` `🚸`
+  - WARNING: Guides Palette will take over all tags with this prefix (auto rename and clean up). Keep your own prefixs away with this bad boy.
 
 Note:
 
@@ -45,7 +50,7 @@ Internally, Guides Palette will add tags like `guide_NAME` for each glyph with g
 
 ## License
 
-Copyright &copy; 2021 3type
+Copyright &copy; 2022 3type
 
 Made possible with the [GlyphsSDK](https://github.com/schriftgestalt/GlyphsSDK) by Georg Seifert ([@schriftgestalt](https://github.com/schriftgestalt)) and Rainer Erich Scheichelbauer ([@mekkablue](https://github.com/mekkablue)).
 
