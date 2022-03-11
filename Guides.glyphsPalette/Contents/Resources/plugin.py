@@ -13,6 +13,7 @@
 
 import objc
 import traceback
+import re
 
 from AppKit import NSFont, NSFontWeightRegular, NSMiniControlSize, NSPredicate
 from vanilla import CheckBox, EditText, Group, TextBox, VerticalStackView, Window
@@ -54,7 +55,7 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def initConfig(self):
-		self.sortBy          = None
+		self.sortBy          = ''
 		self.showCoordinates = True
 		self.showAngle       = True
 		self.tagPrefix       = 'guide_'
@@ -129,10 +130,10 @@ class GuidesPalette(PalettePlugin):
 	def updateConfig(self, font):
 		try:
 			if config := font.customParameters[self.CUSTOM_PARAMETER_NAME]:
-				self.sortBy          = config.get('sortBy', None)
-				self.showCoordinates = bool(int(config.get('showCoordinates', 1)))
-				self.showAngle       = bool(int(config.get('showAngle', 1)))
-				self.tagPrefix       = config.get('tagPrefix', 'guide_')
+				self.sortBy				= config.get('sortBy', '')
+				self.showCoordinates	= bool(int(config.get('showCoordinates', 1)))
+				self.showAngle			= bool(int(config.get('showAngle', 1)))
+				self.tagPrefix			= config.get('tagPrefix', 'guide_') or 'guide_' # For Null
 			else:
 				self.initConfig()
 				font.customParameters[self.CUSTOM_PARAMETER_NAME] = {
@@ -147,11 +148,11 @@ class GuidesPalette(PalettePlugin):
 	@objc.python_method
 	def checkBoxesSortBy(self):
 		dispatch = {
-			'name': (lambda p: p[0].name, False),
-			'x':    (lambda p: p[0].x, False),
-			'y':    (lambda p: p[0].y, False),
-			'-x':   (lambda p: p[0].x, True),
-			'-y':   (lambda p: p[0].y, True),
+			'name':	(lambda p: p[0].name, False),
+			'x':	(lambda p: p[0].x, False),
+			'y':	(lambda p: p[0].y, False),
+			'-x':	(lambda p: p[0].x, True),
+			'-y':	(lambda p: p[0].y, True),
 		}
 		return dispatch.get(self.sortBy, None)
 
@@ -302,26 +303,26 @@ class GuidesPalette(PalettePlugin):
 
 	@objc.python_method
 	def renamePrefix(self, old, new):
-		font = Glyphs.font
-		if old == new:
+		# Null or no update
+		if new == old:
 			return False
 		else:
+			if not new:
+				new = 'guide_'
+			font = Glyphs.font
 			font.disableUpdateInterface()
 			# Rename tags
 			for glyph in font.glyphs:
 				for t in glyph.tags:
-					if t.startswith(old):
-						newT = new + t.removeprefix(old)
-						glyph.tags.append(newT)
+					if tagMatch := re.match(f'^{old}(.*)$', t):
+						glyph.tags.append(new + tagMatch.group(1))
 						glyph.tags.remove(t)
 			# Update guides filter
-			target = f'tags CONTAINS "{old}'
 			for m in font.masters:
 				for g in m.guides:
-					predOld = str(g.filter)
-					if predOld.startswith(target):
-						predNew = predOld.replace(target, f'tags CONTAINS "{new}', 1)
-						g.filter = NSPredicate.predicateWithFormat_(predNew)
+					if tagMatch := re.match(f'tags CONTAINS "{old}(.*?)"', str(g.filter)):
+						g.filter = NSPredicate.predicateWithFormat_(
+							f'tags CONTAINS "{new}{tagMatch.group(1)}"')
 			font.enableUpdateInterface()
 			return True
 

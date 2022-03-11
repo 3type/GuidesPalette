@@ -21,17 +21,17 @@ Guides Palette uses the font custom parameter `Guides Palette Config` to control
 where
 
 - `<s>` can be
-  - `None`: do not sort (default)
-  - `name`: sort by name
-  - `x`, `y`: sort by x or y coordinate
-  - `-x` or `-y`: sort by x or y coordinate (inverse)
+  - `""`: None, do not sort (default)
+  - `"name"`: sort by name
+  - `"x"`or `"y"`: sort by x or y coordinate
+  - `"-x"` or `"-y"`: sort by x or y coordinate (inverse)
 - `<a>` and `<c>` can be
-  - `1`: show (default)
-  - `0`: not show
+  - `"1"`: show (default)
+  - `"0"`: not show
 - `<px>` can be
-  - `guide_` (default)
-  - or Any text string, eg: `G-` `参考线：`
-  - or Emoji, eg: `📐` `🚸`
+  - `"guide_"`: Default prefix, and `""` (None) will be treated as `"guide_"`
+  - or Any other string, eg: `"G-"` or `"参考线："`
+  - or Emoji, eg: `"📐"` or `"🚸"`
   - WARNING: Guides Palette will take over all tags with this prefix (auto rename and clean up). Keep your own prefixs away with this bad boy.
 
 Note:
